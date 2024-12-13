@@ -1,0 +1,8 @@
+OrdererOrgs:
+  - Name: Orderer
+    Domain: av.com
+    EnableNodeOUs: true
+    Specs:
+      - Hostname: orderer
+        SANS:
+          - localhost
