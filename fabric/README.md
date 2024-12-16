@@ -1,4 +1,9 @@
-https://hyperledger-fabric.readthedocs.io/en/release-2.5/prereqs.html
-https://hyperledger-fabric.readthedocs.io/en/release-2.5/install.html
+# Fabric
 
-export PATH=${PWD}/bin:$PATH
+[Hyperledger Fabric Prerequisites](https://hyperledger-fabric.readthedocs.io/en/latest/prereqs.html)
+
+1. `./install-fabric.sh b`
+2. `cd test-network`
+3. `./network down` `./network up`
+
+export PATH=${PWD}/../bin:$PATH
