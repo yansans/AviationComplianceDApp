@@ -4,6 +4,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	"crypto/x509"
@@ -59,7 +60,9 @@ func initFabric() error {
 
 	// Init wallet and Load Identity
 	store := &FileWalletStore{}
-	identity, err := LoadIdentityFromFiles(mspID, "./key/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/signcerts/User1@org1.example.com-cert.pem", "./key/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/keystore/priv_sk")
+	identity, err := LoadIdentityFromFiles(mspID, 
+		"../../fabric/test-network/organizations/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/signcerts/User1@org1.example.com-cert.pem", 
+		"../../fabric/test-network/organizations/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/keystore/priv_sk")
 	if err != nil {
 		return fmt.Errorf("failed to load identity from files: %v", err)
 	}
@@ -84,9 +87,7 @@ func initFabric() error {
 	// Create the gateway using the wallet identity
 	gateway, err = client.Connect(
 		&retrievedIdentity,
-		client.WithClientConnection(clientConnection),
-		// client.WithConnectionProfile(configPath),
-	)
+		client.WithClientConnection(clientConnection))
 	if err != nil {
 		return fmt.Errorf("failed to create gateway: %v", err)
 	}
@@ -94,43 +95,43 @@ func initFabric() error {
 	return nil
 }
 
-// func queryChaincode(c *gin.Context) {
-// 	key := c.Param("key")
+func queryChaincode(c *gin.Context) {
+	key := c.Param("key")
 
-// 	// Get the contract from the gateway
-// 	contract := gateway.GetNetwork(channelID).GetContract(chaincodeID)
+	// Get the contract from the gateway
+	contract := gateway.GetNetwork(channelID).GetContract(chaincodeID)
 
-// 	response, err := contract.EvaluateTransaction("query", []string{key})
-// 	if err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to query chaincode: %v", err)})
-// 		return
-// 	}
+	response, err := contract.EvaluateTransaction("query", key)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to query chaincode: %v", err)})
+		return
+	}
 
-// 	c.JSON(http.StatusOK, gin.H{"result": string(response)})
-// }
+	c.JSON(http.StatusOK, gin.H{"result": string(response)})
+}
 
-// func invokeChaincode(c *gin.Context) {
-// 	var request struct {
-// 		Key   string `json:"key"`
-// 		Value string `json:"value"`
-// 	}
+func invokeChaincode(c *gin.Context) {
+	var request struct {
+		Key   string `json:"key"`
+		Value string `json:"value"`
+	}
 
-// 	if err := c.ShouldBindJSON(&request); err != nil {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
-// 		return
-// 	}
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		return
+	}
 
-// 	// Get the contract from the gateway
-// 	contract := gateway.GetNetwork(channelID).GetContract(chaincodeID)
+	// Get the contract from the gateway
+	contract := gateway.GetNetwork(channelID).GetContract(chaincodeID)
 
-// 	_, err := contract.SubmitTransaction("invoke", []string{request.Key, request.Value})
-// 	if err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to invoke chaincode: %v", err)})
-// 		return
-// 	}
+	_, err := contract.SubmitTransaction("invoke", request.Key, request.Value)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to invoke chaincode: %v", err)})
+		return
+	}
 
-// 	c.JSON(http.StatusOK, gin.H{"message": "Invoke successful"})
-// }
+	c.JSON(http.StatusOK, gin.H{"message": "Invoke successful"})
+}
 
 func populateLedger() {
 	// Get the contract from the gateway
@@ -157,8 +158,8 @@ func main() {
 	// Set up Gin router
 	router := gin.Default()
 
-	// router.GET("/query/:key", queryChaincode)
-	// router.POST("/invoke", invokeChaincode)
+	router.GET("/query/:key", queryChaincode)
+	router.POST("/invoke", invokeChaincode)
 
 	port := "8080"
 	log.Printf("Server is running on port %s", port)
