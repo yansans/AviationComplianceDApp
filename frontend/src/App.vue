@@ -3,10 +3,10 @@
     <header>
       <h1>Aviation Compliance DApp</h1>
       <nav>
-        <a><button @click="viewCreateAsset">Create Asset</button></a>
-        <a><button @click="viewReadAsset">Read Asset</button></a>
-        <a><button @click="viewUpdateCompliance">Update Compliance</button></a>
-        <a><button @click="viewAssetHistory">View Asset History</button></a>
+        <a><button class="btn-feature" @click="viewCreateAsset">Create Asset</button></a>
+        <a><button class="btn-feature" @click="viewReadAsset">Read Asset</button></a>
+        <a><button class="btn-feature" @click="viewUpdateCompliance">Update Compliance</button></a>
+        <a><button class="btn-feature" @click="viewAssetHistory">View Asset History</button></a>
       </nav>
     </header>
     <component :is="currentView" />
