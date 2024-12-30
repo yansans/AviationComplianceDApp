@@ -2,11 +2,14 @@ package main
 
 import (
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hyperledger/fabric-gateway/pkg/client"
@@ -21,6 +24,19 @@ const (
 	tlsCertPath  = "../../fabric/test-network/organizations/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/tlscacerts/tlsca.org1.example.com-cert.pem"                                  // TLS certificate path
 	mspID        = "Org1MSP"
 )
+type Asset struct {
+	ID          string `json:"id"`
+	CompanyName string `json:"company_name"`
+	AircraftID  string `json:"aircraft_id"`
+	ReportDate  string `json:"report_date"`
+	Inspector   string `json:"inspector"`
+	Description string `json:"description"`
+	Compliance  bool   `json:"compliance"`
+}
+type AssetHistory struct {
+	Timestamp time.Time `json:"timestamp"`
+	Asset     Asset     `json:"asset"`
+}
 
 var gateway *client.Gateway
 var clientConnection *grpc.ClientConn
@@ -106,7 +122,6 @@ func initFabric() error {
 func readAsset(c *gin.Context) {
 	key := c.Param("key")
 
-	// Get the contract from the gateway
 	contract := gateway.GetNetwork(channelID).GetContract(chaincodeID)
 
 	response, err := contract.EvaluateTransaction("ReadAsset", key)
@@ -115,13 +130,26 @@ func readAsset(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"result": string(response)})
+	var asset Asset
+
+	err = json.Unmarshal(response, &asset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to unmarshal response: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"result": asset})
 }
 
 func createAsset(c *gin.Context) {
 	var request struct {
-		Key   string `json:"key"`
-		Value string `json:"value"`
+		ID          string `json:"id"`
+		CompanyName string `json:"company_name"`
+		AircraftID  string `json:"aircraft_id"`
+		ReportDate  string `json:"report_date"`
+		Inspector   string `json:"inspector"`
+		Description string `json:"description"`
+		Compliance  bool   `json:"compliance"`
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -129,16 +157,99 @@ func createAsset(c *gin.Context) {
 		return
 	}
 
-	// Get the contract from the gateway
 	contract := gateway.GetNetwork(channelID).GetContract(chaincodeID)
 
-	_, err := contract.SubmitTransaction("CreateAsset", request.Key, request.Value)
+	_, err := contract.SubmitTransaction(
+		"CreateAsset", 
+		request.ID, 
+		request.CompanyName, 
+		request.AircraftID, 
+		request.ReportDate, 
+		request.Inspector, 
+		request.Description, 
+		strconv.FormatBool(request.Compliance),
+	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to invoke chaincode: %v", err)})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Invoke successful"})
+}
+
+func updateCompliance(c *gin.Context) {
+    var request struct {
+        ID        string `json:"id"`
+        Compliance string `json:"compliance"` // "true" or "false"
+    }
+
+    if err := c.ShouldBindJSON(&request); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+        return
+    }
+
+    contract := gateway.GetNetwork(channelID).GetContract(chaincodeID)
+
+    response, err := contract.SubmitTransaction("UpdateCompliance", request.ID, request.Compliance)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to update compliance: %v", err)})
+        return
+    }
+
+    if len(response) == 0 {
+        c.JSON(http.StatusOK, gin.H{"message": "Asset compliance updated successfully"})
+    } else {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update asset compliance"})
+    }
+}
+
+func getAssetHistory(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Asset ID is required"})
+		return
+	}
+
+	contract := gateway.GetNetwork(channelID).GetContract(chaincodeID)
+
+	result, err := contract.EvaluateTransaction("GetHistory", id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to invoke chaincode: %v", err)})
+		return
+	}
+
+	var history []AssetHistory
+	err = json.Unmarshal(result, &history)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to unmarshal history: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, history)
+}
+
+func assetExists(c *gin.Context) {
+	id := c.Param("id")
+
+	contract := gateway.GetNetwork(channelID).GetContract(chaincodeID)
+
+	exists, err := contract.EvaluateTransaction("AssetExists", id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to query chaincode: %v", err)})
+		return
+	}
+
+	var existsBool bool
+	if err := json.Unmarshal(exists, &existsBool); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to unmarshal response: %v", err)})
+		return
+	}
+
+	if existsBool {
+		c.JSON(http.StatusOK, gin.H{"message": "Asset exists"})
+	} else {
+		c.JSON(http.StatusNotFound, gin.H{"message": "Asset not found"})
+	}
 }
 
 func populateLedger(c *gin.Context) {	// ONLY USE FOR TESTING PURPOSES
@@ -164,7 +275,10 @@ func main() {
 	router := gin.Default()
 
 	router.GET("/read_asset/:key", readAsset)
+	router.GET("/asset_history/:id", getAssetHistory)
+	router.GET("/asset_exists/:id", assetExists)
 	router.POST("/create_asset", createAsset)
+	router.POST("/update_compliance", updateCompliance)
 	// router.POST("/populate", populateLedger)	// ONLY USE FOR TESTING PURPOSES
 
 	port := "8080"
