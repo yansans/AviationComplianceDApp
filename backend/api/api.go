@@ -181,11 +181,16 @@ func FetchFlightData(flightID string) (*FlightData, error) {
 		Arrival:        flight["arrival"].(map[string]interface{})["estimated"].(string),
 		FlightNumber:   flight["flight"].(map[string]interface{})["iata"].(string),
 		AirlineName:    flight["airline"].(map[string]interface{})["name"].(string),
-		AircraftType:   flight["aircraft"].(map[string]interface{})["iata"].(string), // Fetch aircraft type
 		DepartureTime:  flight["departure"].(map[string]interface{})["estimated"].(string),
 		ArrivalTime:    flight["arrival"].(map[string]interface{})["estimated"].(string),
 		DepartureCity:  flight["departure"].(map[string]interface{})["airport"].(string),
 		ArrivalCity:    flight["arrival"].(map[string]interface{})["airport"].(string),
+	}
+
+	if aircraft, ok := flight["aircraft"].(map[string]interface{}); ok {
+		flightData.AircraftType = aircraft["iata"].(string)
+	} else {
+		flightData.AircraftType = "Unknown"
 	}
 
 	return flightData, nil
