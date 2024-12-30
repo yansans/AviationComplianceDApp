@@ -1,6 +1,6 @@
 <template>
     <div>
-        <h2>Wallet Upload</h2>
+        <h2>Wallet Sign</h2>
         <form @submit.prevent="processFiles">
             <div>
                 <label for="cert">Upload Certificate:</label>
@@ -9,6 +9,10 @@
             <div>
                 <label for="pkey">Upload Private Key:</label>
                 <input type="file" id="pkey" @change="onFileChange('pkey', $event)" required />
+            </div>
+            <div>
+                <label for="msp">Upload MSP File:</label>
+                <input type="file" id="msp" @change="onFileChange('msp', $event)" required />
             </div>
             <button type="submit">Process Files</button>
         </form>
@@ -25,9 +29,11 @@ export default {
             files: {
                 cert: null,
                 pkey: null,
+                msp: null,
             },
             privateKey: null,
             certificate: null,
+            mspContent: null,
             responseMessage: null,
         };
     },
@@ -36,42 +42,37 @@ export default {
             const file = event.target.files[0];
             this.files[fileKey] = file;
 
-            const regex =
-                fileKey === "pkey"
-                    ? /-----BEGIN PRIVATE KEY-----(.*?)-----END PRIVATE KEY-----/s
-                    : /-----BEGIN CERTIFICATE-----(.*?)-----END CERTIFICATE-----/s;
+            const regexMap = {
+                pkey: /-----BEGIN PRIVATE KEY-----(.*?)-----END PRIVATE KEY-----/s,
+                cert: /-----BEGIN CERTIFICATE-----(.*?)-----END CERTIFICATE-----/s,
+                msp: /.+/,
+            };
 
-            this.extractKey(file, fileKey === "pkey" ? "privateKey" : "certificate", regex);
+            this.extractFileContent(file, fileKey, regexMap[fileKey]);
         },
-        extractKey(file, keyType, regex) {
+        extractFileContent(file, keyType, regex) {
             const reader = new FileReader();
             reader.onload = (event) => {
                 const fileContent = event.target.result;
                 const match = fileContent.match(regex);
-                console.log(`Extracting ${keyType}:`, match);
-                if (match && match[0]) {
-                    // Extract the full PEM block and remove BEGIN/END lines
-                    const cleanedKey = match[0]
-                        .replace(/-----BEGIN [^-]+-----/g, "")
-                        .replace(/-----END [^-]+-----/g, "")
-                        .replace(/\n/g, "");
 
-                    this[keyType] = cleanedKey.trim();
-                    console.log(`${keyType} extracted successfully.`);
+                if (match) {
+                    this[keyType === "pkey" ? "privateKey" : keyType === "cert" ? "certificate" : "mspContent"] = fileContent.trim();
+                    console.log(`${keyType} content extracted successfully.`);
                 } else {
-                    this.responseMessage = `Invalid ${keyType === "privateKey" ? "private key" : "certificate"} format.`;
+                    this.responseMessage = `Invalid ${keyType.toUpperCase()} format or content.`;
                 }
             };
             reader.onerror = (error) => {
                 console.error(`Error reading ${keyType} file:`, error);
-                this.responseMessage = `Failed to read the ${keyType} file.`;
+                this.responseMessage = `Failed to read the ${keyType.toUpperCase()} file.`;
             };
             reader.readAsText(file);
         },
 
         async processFiles() {
-            if (!this.privateKey || !this.certificate) {
-                this.responseMessage = "Please upload both valid files.";
+            if (!this.privateKey || !this.certificate || !this.mspContent) {
+                this.responseMessage = "Please upload all required files.";
                 return;
             }
 
@@ -79,6 +80,7 @@ export default {
                 const requestBody = {
                     privateKey: this.privateKey,
                     certificate: this.certificate,
+                    mspContent: this.mspContent,
                 };
 
                 const response = await api.post("/wallet_sign_in", requestBody, {
