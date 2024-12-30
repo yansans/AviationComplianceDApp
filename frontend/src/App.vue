@@ -1,67 +1,56 @@
 <template>
   <div id="app">
     <header>
-      <h1>Blogcain Jaya</h1>
+      <h1>Aviation Compliance DApp</h1>
       <nav>
-        <a href="#" @click="switchPage('home')">Home</a>
-        <a href="#" @click="switchPage('about')">About</a>
+        <a><button @click="viewCreateAsset">Create Asset</button></a>
+        <a><button @click="viewReadAsset">Read Asset</button></a>
+        <a><button @click="viewUpdateCompliance">Update Compliance</button></a>
+        <a><button @click="viewAssetHistory">View Asset History</button></a>
       </nav>
     </header>
-
-    <main>
-      <HomePage v-if="currentPage === 'home'" />
-      <InfoPage v-else />
-    </main>
+    <component :is="currentView" />
   </div>
 </template>
 
 <script>
-import HomePage from './components/HomePage.vue';
-import InfoPage from './components/InfoPage.vue';
+import CreateAsset from "./components/CreateAsset.vue";
+import ReadAsset from "./components/ReadAsset.vue";
+import UpdateCompliance from "./components/UpdateCompliance.vue";
+import AssetHistory from "./components/AssetHistory.vue";
 
 export default {
   data() {
     return {
-      currentPage: 'home',
+      message: "Select an action to interact with the ledger",
+      currentView: null,
     };
   },
+
   components: {
-    HomePage,
-    InfoPage,
+    CreateAsset,
+    ReadAsset,
+    UpdateCompliance,
+    AssetHistory,
   },
+
   methods: {
-    switchPage(page) {
-      this.currentPage = page;
+    viewCreateAsset() {
+      this.currentView = "CreateAsset";
+    },
+    viewReadAsset() {
+      this.currentView = "ReadAsset";
+    },
+    viewUpdateCompliance() {
+      this.currentView = "UpdateCompliance";
+    },
+    viewAssetHistory() {
+      this.currentView = "AssetHistory";
     },
   },
 };
 </script>
 
 <style>
-/* Basic styles */
-body {
-  font-family: Arial, sans-serif;
-  margin: 0;
-  padding: 0;
-}
-
-header {
-  background: #282c34;
-  color: white;
-  padding: 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-nav a {
-  color: white;
-  margin: 0 0.5rem;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-main {
-  padding: 2rem;
-}
+  @import './assets/styles.css';
 </style>
