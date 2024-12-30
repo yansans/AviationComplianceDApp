@@ -9,7 +9,7 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         console.error("API Error:", error.response || error.message);
-        alert("An error occurred while communicating with the server.");
+        alert("An error occurred while communicating with the server: \n" + error.message);
         return Promise.reject(error);
     }
 )

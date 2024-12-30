@@ -7,6 +7,7 @@
         <a><button class="btn-feature" @click="viewReadAsset">Read Asset</button></a>
         <a><button class="btn-feature" @click="viewUpdateCompliance">Update Compliance</button></a>
         <a><button class="btn-feature" @click="viewAssetHistory">View Asset History</button></a>
+        <a><button class="btn-feature" @click="viewWalletSetting">Wallet Setting</button></a>
       </nav>
     </header>
     <component :is="currentView" />
@@ -18,6 +19,7 @@ import CreateAsset from "./components/CreateAsset.vue";
 import ReadAsset from "./components/ReadAsset.vue";
 import UpdateCompliance from "./components/UpdateCompliance.vue";
 import AssetHistory from "./components/AssetHistory.vue";
+import WalletSetting from "./components/WalletSetting.vue";
 
 export default {
   data() {
@@ -32,6 +34,7 @@ export default {
     ReadAsset,
     UpdateCompliance,
     AssetHistory,
+    WalletSetting,
   },
 
   methods: {
@@ -46,6 +49,9 @@ export default {
     },
     viewAssetHistory() {
       this.currentView = "AssetHistory";
+    },
+    viewWalletSetting() {
+      this.currentView = "WalletSetting";
     },
   },
 };
