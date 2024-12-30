@@ -5,6 +5,7 @@ go 1.23.2
 require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/hyperledger/fabric-gateway v1.7.1
+	github.com/joho/godotenv v1.5.1
 	google.golang.org/grpc v1.69.2
 )
 

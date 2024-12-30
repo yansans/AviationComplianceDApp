@@ -90,13 +90,13 @@ func (s *SimpleChaincode) CreateAsset(stub shim.ChaincodeStubInterface, args []s
 	}
 
 	asset := Asset{
-		ID:          id,
-		CompanyName: companyName,
-		AircraftID:  aircraftID,
-		Compliance:  compliance,
-		ReportDate:  reportDate,
-		Inspector:   inspector,
-		Description: description,
+		ID:           id,
+		CompanyName:  companyName,
+		AircraftID:   aircraftID,
+		Compliance:   compliance,
+		ReportDate:   reportDate,
+		Inspector:    inspector,
+		Description:  description,
 	}
 
 	assetJSON, err := json.Marshal(asset)
@@ -109,7 +109,7 @@ func (s *SimpleChaincode) CreateAsset(stub shim.ChaincodeStubInterface, args []s
 		return shim.Error(fmt.Sprintf("Error storing asset: %s", err))
 	}
 
-	return shim.Success(nil)
+	return shim.Success([]byte(fmt.Sprintf("Asset %s created successfully", id)))
 }
 
 // ReadAsset retrieves an asset from the ledger
