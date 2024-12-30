@@ -23,7 +23,7 @@ const (
 	// configPath   = "../../fabric/test-network/config/configtx.yaml"
 	chaincodeID  = "basic"                                                    
 	channelID    = "channel1"                                                 
-	tlsCertPath  = "../../fabric/test-network/organizations/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/tlscacerts/tlsca.org1.example.com-cert.pem"                                  // TLS certificate path
+	tlsCertPath  = "../../fabric/test-network/organizations/peerOrganizations/org1.av.com/users/User1@org1.av.com/msp/tlscacerts/tlsca.org1.av.com-cert.pem"                                  // TLS certificate path
 	mspID        = "Org1MSP"
 	aviationStackAPIURL = "https://api.aviationstack.com/v1/flights"
 )
@@ -96,8 +96,8 @@ func initFabric() error {
 	// Init wallet and Load Identity
 	store := &FileWalletStore{}
 	identity, err := LoadIdentityFromFiles(mspID, 
-		"../../fabric/test-network/organizations/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/signcerts/User1@org1.example.com-cert.pem", 
-		"../../fabric/test-network/organizations/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/keystore/priv_sk")
+		"../../fabric/test-network/organizations/peerOrganizations/org1.av.com/users/User1@org1.av.com/msp/signcerts/User1@org1.av.com-cert.pem", 
+		"../../fabric/test-network/organizations/peerOrganizations/org1.av.com/users/User1@org1.av.com/msp/keystore/priv_sk")
 	if err != nil {
 		return fmt.Errorf("failed to load identity from files: %v", err)
 	}
