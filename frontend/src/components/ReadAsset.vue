@@ -27,7 +27,7 @@
     methods: {
       async fetchAsset() {
         try {
-          const response = await api.get(`/readAsset/${this.id}`);
+          const response = await api.get(`/read_asset/${this.id}`);
           this.asset = JSON.stringify(response.data, null, 2);
         } catch (error) {
           console.error("Error fetching asset:", error);

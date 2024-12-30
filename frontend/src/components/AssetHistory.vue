@@ -27,7 +27,7 @@
     methods: {
       async fetchHistory() {
         try {
-          const response = await api.get(`/getHistory/${this.id}`);
+          const response = await api.get(`/asset_history/${this.id}`);
           this.history = JSON.stringify(response.data, null, 2);
         } catch (error) {
           console.error("Error fetching history:", error);

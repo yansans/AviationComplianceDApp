@@ -7,10 +7,6 @@
           <input type="text" id="id" v-model="formData.id" required />
         </div>
         <div>
-          <label for="companyName">Company Name:</label>
-          <input type="text" id="companyName" v-model="formData.companyName" required />
-        </div>
-        <div>
           <label for="aircraftId">Aircraft ID:</label>
           <input type="text" id="aircraftId" v-model="formData.aircraftId" required />
         </div>
@@ -47,12 +43,11 @@
       return {
         formData: {
           id: "",
-          companyName: "",
-          aircraftId: "",
-          reportDate: "",
+          aircraft_id: "",
+          report_date: "",
           inspector: "",
           description: "",
-          compliance: "true",
+          compliance: true,
         },
         responseMessage: null,
       };
@@ -60,8 +55,8 @@
     methods: {
       async submitAsset() {
         try {
-          const response = await api.post("/createAsset", this.formData);
-          this.responseMessage = `Asset created successfully: ${response.data.id}`;
+          const response = await api.post("/create_asset", this.formData);
+          this.responseMessage = `Asset created successfully: ${response.data.message}`;
         } catch (error) {
           console.error("Error creating asset:", error);
           this.responseMessage = "Failed to create asset.";

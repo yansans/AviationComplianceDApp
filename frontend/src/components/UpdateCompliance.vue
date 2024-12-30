@@ -33,8 +33,8 @@
     methods: {
       async updateCompliance() {
         try {
-          const response = await api.post("/updateCompliance", { id: this.id, compliance: this.compliance });
-          this.responseMessage = `Compliance updated for asset: ${response.data.id}`;
+          const response = await api.post("/update_compliance", { id: this.id, compliance: this.compliance });
+          this.responseMessage = `Compliance updated for asset: ${response.data.message}`;
         } catch (error) {
           console.error("Error updating compliance:", error);
           this.responseMessage = "Failed to update compliance.";

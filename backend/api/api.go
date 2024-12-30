@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/hyperledger/fabric-gateway/pkg/client"
 	"github.com/joho/godotenv"
@@ -233,13 +234,13 @@ func createAsset(c *gin.Context) {
 		return
 	}
 
-	var companyName string
 	flightData, err := FetchFlightData(request.AircraftID)
 	if err != nil {
-		companyName = "Unavailable"
-	} else {
-		companyName = flightData.AirlineName
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to fetch flight data: %v", err)})
+		return
 	}
+
+	companyName := flightData.AirlineName
 
 	contract := gateway.GetNetwork(channelID).GetContract(chaincodeID)
 
@@ -258,7 +259,7 @@ func createAsset(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Invoke successful"})
+	c.JSON(http.StatusOK, gin.H{"message": request.ID})
 }
 
 func updateCompliance(c *gin.Context) {
@@ -281,7 +282,7 @@ func updateCompliance(c *gin.Context) {
     }
 
     if len(response) == 0 {
-        c.JSON(http.StatusOK, gin.H{"message": "Asset compliance updated successfully"})
+        c.JSON(http.StatusOK, gin.H{"message": request.ID})
     } else {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update asset compliance"})
     }
@@ -357,6 +358,14 @@ func main() {
 
 	// Set up Gin router
 	router := gin.Default()
+
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173"}, // Add allowed origins
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
 
 	router.GET("/read_asset/:key", readAsset)
 	router.GET("/asset_history/:id", getAssetHistory)
