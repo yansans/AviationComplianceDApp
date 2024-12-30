@@ -1,12 +1,5 @@
 # AviationComplianceDApp
 
-a. Deskripsi singkat terkait dengan aplikasi
-b. System Requirement untuk melakukan deployment dApps dan menjalankan private chain.
-c. Cara menjalankan private chain
-d. Cara melakukan deployment smart contract pada private chain
-e. Cara melakukan deployment dan integrasi oracle
-f. Link/Snippet video demonstrasi cara menggunakan aplikasi
-
 ## Deskripsi Aplikasi
 
 Aplikasi AviationComplianceDApp dibuat sebagai aplikasi verifikasi dan konfirmasi terhadap compliance suatu perusahaan penerbangan dengan aturan serta sebagai solusi dari tantangan kebergantungan terhadap perusahaan, risiko manipulasi, dan transparansi proses. Use case dari aplikasi ini antara lain membuat compliance asset, membaca compliance asset, meng-update compliance asset, serta mengakses riwayat compliance asset. Tech Stack yang digunakan adalah Hyperledger Fabric sebagai platform blockchain, Fabric Gateway sebagai backend, Vue sebagai frontend, serta Python sebagai Oracle.
