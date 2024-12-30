@@ -81,7 +81,7 @@ export default {
                     certificate: this.certificate,
                 };
 
-                const response = await api.post("/processFiles", requestBody, {
+                const response = await api.post("/wallet_sign_in", requestBody, {
                     headers: {
                         "Content-Type": "application/json",
                     },

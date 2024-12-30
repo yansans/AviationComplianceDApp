@@ -348,6 +348,10 @@ func populateLedger(c *gin.Context) {	// ONLY USE FOR TESTING PURPOSES
     c.JSON(http.StatusOK, gin.H{"message": "Ledger populated successfully"})
 }
 
+func walletSignIn(c *gin.Context) {
+    c.JSON(http.StatusOK, gin.H{"message": "Ledger populated successfully"}) 
+}
+
 func main() {
 	defer clientConnection.Close()
 
@@ -370,6 +374,7 @@ func main() {
 	router.GET("/read_asset/:key", readAsset)
 	router.GET("/asset_history/:id", getAssetHistory)
 	router.GET("/asset_exists/:id", assetExists)
+	router.POST("/wallet_sign_in/", walletSignIn)
 	router.POST("/create_asset", createAsset)
 	router.POST("/update_compliance", updateCompliance)
 	// router.POST("/populate", populateLedger)	// ONLY USE FOR TESTING PURPOSES
