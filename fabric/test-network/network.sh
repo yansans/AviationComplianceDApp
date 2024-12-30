@@ -204,18 +204,18 @@ function createOrgs() {
 
     . organizations/cfssl/registerEnroll.sh
     #function_name cert-type   CN   org
-    peer_cert peer peer0.org1.example.com org1
-    peer_cert admin Admin@org1.example.com org1
+    peer_cert peer peer0.org1.av.com org1
+    peer_cert admin Admin@org1.av.com org1
 
     infoln "Creating Org2 Identities"
     #function_name cert-type   CN   org
-    peer_cert peer peer0.org2.example.com org2
-    peer_cert admin Admin@org2.example.com org2
+    peer_cert peer peer0.org2.av.com org2
+    peer_cert admin Admin@org2.av.com org2
 
     infoln "Creating Orderer Org Identities"
     #function_name cert-type   CN   
-    orderer_cert orderer orderer.example.com
-    orderer_cert admin Admin@example.com
+    orderer_cert orderer orderer.av.com
+    orderer_cert admin Admin@av.com
 
   fi 
 
@@ -443,7 +443,9 @@ function networkDown() {
   # Don't remove the generated artifacts -- note, the ledgers are always removed
   if [ "$MODE" != "restart" ]; then
     # Bring down the network, deleting the volumes
-    ${CONTAINER_CLI} volume rm docker_orderer.example.com docker_peer0.org1.example.com docker_peer0.org2.example.com
+    ${CONTAINER_CLI} volume rm docker_orderer.av.com docker_peer0.org1.av.com docker_peer0.org2.av.com
+    ${CONTAINER_CLI} volume rm compose_orderer.av.com compose_peer0.org1.av.com compose_peer0.org2.av.com
+
     #Cleanup the chaincode containers
     clearContainers
     #Cleanup images
