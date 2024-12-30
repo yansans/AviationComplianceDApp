@@ -1,13 +1,12 @@
 package main
 
 import (
+	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-
-	"crypto/x509"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hyperledger/fabric-gateway/pkg/client"
@@ -16,16 +15,18 @@ import (
 )
 
 const (
-	configPath   = "../../fabric/test-network/config/connection-profile.yaml"
+	// configPath   = "../../fabric/test-network/config/configtx.yaml"
 	chaincodeID  = "basic"                                                    
 	channelID    = "channel1"                                                 
-	tlsCertPath  = "../../fabric/test-network/organizations/peerOrganizations/org1.example.com/tlsca/tlsca.org1.example.com-cert.pem"                                  // TLS certificate path
+	tlsCertPath  = "../../fabric/test-network/organizations/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/tlscacerts/tlsca.org1.example.com-cert.pem"                                  // TLS certificate path
 	mspID        = "Org1MSP"
 )
 
 var gateway *client.Gateway
+var clientConnection *grpc.ClientConn
 
 func newGrpcConnection() (*grpc.ClientConn, error) {
+	// With TLS
     certificatePEM, err := os.ReadFile(tlsCertPath)
     if err != nil {
         return nil, fmt.Errorf("failed to read TLS certificate: %w", err)
@@ -51,12 +52,13 @@ func newGrpcConnection() (*grpc.ClientConn, error) {
 }
 
 func initFabric() error {
+	var err error
+	
 	// Create gRPC connection
-	clientConnection, err := newGrpcConnection()
+	clientConnection, err = newGrpcConnection()
 	if err != nil {
 		return fmt.Errorf("failed to create gRPC connection: %v", err)
 	}
-	defer clientConnection.Close()
 
 	// Init wallet and Load Identity
 	store := &FileWalletStore{}
@@ -84,10 +86,16 @@ func initFabric() error {
 		return fmt.Errorf("failed to retrieve identity from wallet: %v", err)
 	}
 
+	signingImplementation, err := retrievedIdentity.Signer()
+	if err != nil {
+		panic(fmt.Sprintf("failed to get signing implementation: %v", err))
+	}
+
 	// Create the gateway using the wallet identity
 	gateway, err = client.Connect(
 		&retrievedIdentity,
-		client.WithClientConnection(clientConnection))
+		client.WithClientConnection(clientConnection),
+		client.WithSign(signingImplementation))
 	if err != nil {
 		return fmt.Errorf("failed to create gateway: %v", err)
 	}
@@ -95,13 +103,13 @@ func initFabric() error {
 	return nil
 }
 
-func queryChaincode(c *gin.Context) {
+func readAsset(c *gin.Context) {
 	key := c.Param("key")
 
 	// Get the contract from the gateway
 	contract := gateway.GetNetwork(channelID).GetContract(chaincodeID)
 
-	response, err := contract.EvaluateTransaction("query", key)
+	response, err := contract.EvaluateTransaction("ReadAsset", key)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to query chaincode: %v", err)})
 		return
@@ -110,7 +118,7 @@ func queryChaincode(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"result": string(response)})
 }
 
-func invokeChaincode(c *gin.Context) {
+func createAsset(c *gin.Context) {
 	var request struct {
 		Key   string `json:"key"`
 		Value string `json:"value"`
@@ -124,7 +132,7 @@ func invokeChaincode(c *gin.Context) {
 	// Get the contract from the gateway
 	contract := gateway.GetNetwork(channelID).GetContract(chaincodeID)
 
-	_, err := contract.SubmitTransaction("invoke", request.Key, request.Value)
+	_, err := contract.SubmitTransaction("CreateAsset", request.Key, request.Value)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to invoke chaincode: %v", err)})
 		return
@@ -133,33 +141,31 @@ func invokeChaincode(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Invoke successful"})
 }
 
-func populateLedger() {
-	// Get the contract from the gateway
-	contract := gateway.GetNetwork(channelID).GetContract(chaincodeID)
+func populateLedger(c *gin.Context) {	// ONLY USE FOR TESTING PURPOSES
+    contract := gateway.GetNetwork(channelID).GetContract(chaincodeID)
 
-	// Submit the transaction to initialize the ledger
-	_, err := contract.SubmitTransaction("InitLedger")
-	if err != nil {
-		log.Fatalf("failed to submit InitLedger transaction: %v", err)
-	}
+    _, err := contract.SubmitTransaction("CreateAsset", "asset123", "Company ABC", "A12345", "2024-12-30", "John Doe", "Engine check", "true")
+    if err != nil {
+        log.Fatalf("failed to submit CreateAsset transaction: %v", err)
+    }
 
-	log.Println("Ledger initialized successfully")
+    c.JSON(http.StatusOK, gin.H{"message": "Ledger populated successfully"})
 }
 
 func main() {
+	defer clientConnection.Close()
+
 	// Init Fabric connection
 	if err := initFabric(); err != nil {
 		log.Fatalf("Failed to initialize Fabric Gateway: %v", err)
 	}
 
-	// Init ledger with sample assets
-	// populateLedger()
-
 	// Set up Gin router
 	router := gin.Default()
 
-	router.GET("/query/:key", queryChaincode)
-	router.POST("/invoke", invokeChaincode)
+	router.GET("/read_asset/:key", readAsset)
+	router.POST("/create_asset", createAsset)
+	// router.POST("/populate", populateLedger)	// ONLY USE FOR TESTING PURPOSES
 
 	port := "8080"
 	log.Printf("Server is running on port %s", port)

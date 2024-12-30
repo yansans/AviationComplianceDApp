@@ -96,6 +96,17 @@ func (i *X509Identity) MspID() string {
 	return i.MSP
 }
 
+func (i *X509Identity) Signer() (func(digest []byte) ([]byte, error), error) {
+	privateKey, err := parsePrivateKey(i.Key)
+	if err != nil {
+		return nil, err
+	}
+
+	return func(digest []byte) ([]byte, error) {
+		return signMessage(privateKey, digest)
+	}, nil
+}
+
 func LoadIdentityFromFiles(msp, certPath, keyPath string) (*X509Identity, error) {
 	cert, err := ioutil.ReadFile(certPath)
 	if err != nil {
