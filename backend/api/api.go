@@ -85,6 +85,29 @@ func newGrpcConnection() (*grpc.ClientConn, error) {
     return connection, nil
 }
 
+func updateGrpcConnection(tlsCertContent []byte) (*grpc.ClientConn, error) {
+	// With TLS
+    certificatePEM := tlsCertContent
+
+    block, _ := pem.Decode(certificatePEM)
+    if block == nil {
+        return nil, fmt.Errorf("failed to decode PEM")
+    }
+
+    certPool := x509.NewCertPool()
+    if !certPool.AppendCertsFromPEM(certificatePEM) {
+        return nil, fmt.Errorf("failed to add certificate to pool")
+    }
+
+    transportCredentials := credentials.NewClientTLSFromCert(certPool, "")
+    connection, err := grpc.Dial("localhost:7051", grpc.WithTransportCredentials(transportCredentials))
+    if err != nil {
+        return nil, fmt.Errorf("failed to create gRPC connection: %w", err)
+    }
+
+    return connection, nil
+}
+
 func initFabric() error {
 	var err error
 	
@@ -384,8 +407,18 @@ func walletSignIn(c *gin.Context) {
         return
     }
 
+    // Create a new identity
     identity := NewX509Identity(mspContent, certificate, privateKey)
 
+    // Close existing connections
+    if clientConnection != nil {
+        clientConnection.Close()
+    }
+    if gateway != nil {
+        gateway.Close()
+    }
+
+    // Initialize wallet and store identity
     store := &FileWalletStore{}
     walletInstance, err := NewWallet(identity, store)
     if err != nil {
@@ -401,8 +434,43 @@ func walletSignIn(c *gin.Context) {
         return
     }
 
-    log.Printf("User identity successfully added to wallet")
-    c.JSON(http.StatusOK, gin.H{"message": "Identity added to wallet successfully"})
+    // Reconnect to Fabric with the new identity
+    retrievedIdentity, err := walletInstance.Get("user_identity")
+    if err != nil {
+        log.Printf("Failed to retrieve identity from wallet: %v", err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve identity from wallet"})
+        return
+    }
+
+    signingImplementation, err := retrievedIdentity.Signer()
+    if err != nil {
+        log.Printf("Failed to get signing implementation: %v", err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get signing implementation"})
+        return
+    }
+
+    // Create a new gRPC connection
+    clientConnection, err = newGrpcConnection()
+    if err != nil {
+        log.Printf("Failed to create gRPC connection: %v", err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create gRPC connection"})
+        return
+    }
+
+    // Create a new Fabric gateway
+    gateway, err = client.Connect(
+        &retrievedIdentity,
+        client.WithClientConnection(clientConnection),
+        client.WithSign(signingImplementation),
+    )
+    if err != nil {
+        log.Printf("Failed to create Fabric gateway: %v", err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create Fabric gateway"})
+        return
+    }
+
+    log.Printf("Reconnected to Fabric gateway successfully with new identity")
+    c.JSON(http.StatusOK, gin.H{"message": "Reconnected to Fabric gateway successfully"})
 }
 
 
