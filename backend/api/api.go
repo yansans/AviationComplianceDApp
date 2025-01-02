@@ -138,63 +138,82 @@ func initFabric() error {
 }
 
 func FetchFlightData(flightID string) (*FlightData, error) {
-	err := godotenv.Load("../../.env")
-	if err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
-	}
+    err := godotenv.Load("../../.env")
+    if err != nil {
+        log.Fatalf("Error loading .env file: %v", err)
+    }
 
-	apiKey := os.Getenv("AVIATION_STACK_API_KEY")
-	if apiKey == "" {
-		return nil, fmt.Errorf("API key is missing")
-	}
+    apiKey := os.Getenv("AVIATION_STACK_API_KEY")
+    if apiKey == "" {
+        return nil, fmt.Errorf("API key is missing")
+    }
 
-	url := fmt.Sprintf("%s?access_key=%s&flight_iata=%s", aviationStackAPIURL, apiKey, flightID)
+    url := fmt.Sprintf("%s?access_key=%s&flight_iata=%s", aviationStackAPIURL, apiKey, flightID)
 
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch flight data: %v", err)
-	}
-	defer resp.Body.Close()
+    resp, err := http.Get(url)
+    if err != nil {
+        return nil, fmt.Errorf("failed to fetch flight data: %v", err)
+    }
+    defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("API request failed with status code %d", resp.StatusCode)
-	}
+    if resp.StatusCode != 200 {
+        return nil, fmt.Errorf("API request failed with status code %d", resp.StatusCode)
+    }
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %v", err)
-	}
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return nil, fmt.Errorf("failed to read response body: %v", err)
+    }
 
-	var flightDataResponse map[string]interface{}
-	if err := json.Unmarshal(body, &flightDataResponse); err != nil {
-		return nil, fmt.Errorf("failed to parse response JSON: %v", err)
-	}
+    var flightDataResponse map[string]interface{}
+    if err := json.Unmarshal(body, &flightDataResponse); err != nil {
+        return nil, fmt.Errorf("failed to parse response JSON: %v", err)
+    }
 
-	flightDetails, ok := flightDataResponse["data"].([]interface{})
-	if !ok || len(flightDetails) == 0 {
-		return nil, fmt.Errorf("no flight data found for flight ID %s", flightID)
-	}
+    flightDetails, ok := flightDataResponse["data"].([]interface{})
+    if !ok || len(flightDetails) == 0 {
+        return nil, fmt.Errorf("no flight data found for flight ID %s", flightID)
+    }
 
-	flight := flightDetails[0].(map[string]interface{})
-	flightData := &FlightData{
-		FlightStatus:   flight["flight_status"].(string),
-		Departure:      flight["departure"].(map[string]interface{})["estimated"].(string),
-		Arrival:        flight["arrival"].(map[string]interface{})["estimated"].(string),
-		FlightNumber:   flight["flight"].(map[string]interface{})["iata"].(string),
-		AirlineName:    flight["airline"].(map[string]interface{})["name"].(string),
-		DepartureTime:  flight["departure"].(map[string]interface{})["estimated"].(string),
-		ArrivalTime:    flight["arrival"].(map[string]interface{})["estimated"].(string),
-		DepartureCity:  flight["departure"].(map[string]interface{})["airport"].(string),
-		ArrivalCity:    flight["arrival"].(map[string]interface{})["airport"].(string),
-	}
+    flight, ok := flightDetails[0].(map[string]interface{})
+    if !ok {
+        return nil, fmt.Errorf("invalid flight data format")
+    }
 
-	if aircraft, ok := flight["aircraft"].(map[string]interface{}); ok {
-		flightData.AircraftType = aircraft["iata"].(string)
-	} else {
-		flightData.AircraftType = "Unknown"
-	}
+    getString := func(data map[string]interface{}, key string) string {
+        if value, ok := data[key].(string); ok {
+            return value
+        }
+        return "Unknown"
+    }
 
-	return flightData, nil
+    getMap := func(data map[string]interface{}, key string) map[string]interface{} {
+        if value, ok := data[key].(map[string]interface{}); ok {
+            return value
+        }
+        return nil
+    }
+
+    departure := getMap(flight, "departure")
+    arrival := getMap(flight, "arrival")
+    airline := getMap(flight, "airline")
+    flightInfo := getMap(flight, "flight")
+    aircraft := getMap(flight, "aircraft")
+
+    flightData := &FlightData{
+        FlightStatus:   getString(flight, "flight_status"),
+        Departure:      getString(departure, "estimated"),
+        Arrival:        getString(arrival, "estimated"),
+        FlightNumber:   getString(flightInfo, "iata"),
+        AirlineName:    getString(airline, "name"),
+        DepartureTime:  getString(departure, "estimated"),
+        ArrivalTime:    getString(arrival, "estimated"),
+        DepartureCity:  getString(departure, "airport"),
+        ArrivalCity:    getString(arrival, "airport"),
+        AircraftType:   getString(aircraft, "iata"),
+    }
+
+    return flightData, nil
 }
 
 func readAsset(c *gin.Context) {
@@ -349,18 +368,41 @@ func populateLedger(c *gin.Context) {	// ONLY USE FOR TESTING PURPOSES
 }
 
 func walletSignIn(c *gin.Context) {
-    var requestBody map[string]interface{}
+    var requestBody map[string]string
     if err := c.BindJSON(&requestBody); err != nil {
         log.Printf("Failed to parse request body: %v", err)
         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
         return
     }
 
-    log.Printf("Request body: %+v", requestBody)
+    certificate, certOk := requestBody["certificate"]
+    privateKey, keyOk := requestBody["privateKey"]
+    mspContent, mspOk := requestBody["mspContent"]
 
-    response := gin.H{"message": "Ledger populated successfully"}
+    if !certOk || !keyOk || !mspOk {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required fields in the request body"})
+        return
+    }
 
-    c.JSON(http.StatusOK, response)
+    identity := NewX509Identity(mspContent, certificate, privateKey)
+
+    store := &FileWalletStore{}
+    walletInstance, err := NewWallet(identity, store)
+    if err != nil {
+        log.Printf("Failed to create wallet: %v", err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create wallet"})
+        return
+    }
+
+    err = walletInstance.Put("user_identity", identity)
+    if err != nil {
+        log.Printf("Failed to store identity in wallet: %v", err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store identity in wallet"})
+        return
+    }
+
+    log.Printf("User identity successfully added to wallet")
+    c.JSON(http.StatusOK, gin.H{"message": "Identity added to wallet successfully"})
 }
 
 

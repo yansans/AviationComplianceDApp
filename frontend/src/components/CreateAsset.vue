@@ -7,12 +7,12 @@
           <input type="text" id="id" v-model="formData.id" required />
         </div>
         <div>
-          <label for="aircraftId">Aircraft ID:</label>
-          <input type="text" id="aircraftId" v-model="formData.aircraftId" required />
+          <label for="aircraft_id">Aircraft ID:</label>
+          <input type="text" id="aircraft_id" v-model="formData.aircraft_id" required />
         </div>
         <div>
-          <label for="reportDate">Report Date:</label>
-          <input type="date" id="reportDate" v-model="formData.reportDate" required />
+          <label for="report_date">Report Date:</label>
+          <input type="date" id="report_date" v-model="formData.report_date" required />
         </div>
         <div>
           <label for="inspector">Inspector:</label>
