@@ -349,8 +349,20 @@ func populateLedger(c *gin.Context) {	// ONLY USE FOR TESTING PURPOSES
 }
 
 func walletSignIn(c *gin.Context) {
-    c.JSON(http.StatusOK, gin.H{"message": "Ledger populated successfully"}) 
+    var requestBody map[string]interface{}
+    if err := c.BindJSON(&requestBody); err != nil {
+        log.Printf("Failed to parse request body: %v", err)
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+        return
+    }
+
+    log.Printf("Request body: %+v", requestBody)
+
+    response := gin.H{"message": "Ledger populated successfully"}
+
+    c.JSON(http.StatusOK, response)
 }
+
 
 func main() {
 	defer clientConnection.Close()
@@ -364,7 +376,7 @@ func main() {
 	router := gin.Default()
 
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173"}, // Add allowed origins
+		AllowOrigins:     []string{"http://localhost:5173"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -374,7 +386,7 @@ func main() {
 	router.GET("/read_asset/:key", readAsset)
 	router.GET("/asset_history/:id", getAssetHistory)
 	router.GET("/asset_exists/:id", assetExists)
-	router.POST("/wallet_sign_in/", walletSignIn)
+	router.POST("/wallet_sign_in", walletSignIn)
 	router.POST("/create_asset", createAsset)
 	router.POST("/update_compliance", updateCompliance)
 	// router.POST("/populate", populateLedger)	// ONLY USE FOR TESTING PURPOSES
