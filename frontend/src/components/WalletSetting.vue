@@ -11,8 +11,14 @@
                 <input type="file" id="pkey" @change="onFileChange('pkey', $event)" required />
             </div>
             <div>
-                <label for="msp">Upload MSP File:</label>
-                <input type="file" id="msp" @change="onFileChange('msp', $event)" required />
+                <label for="msp">Enter MSP:</label>
+                <input
+                    type="text"
+                    id="msp"
+                    v-model="mspContent"
+                    placeholder="Enter MSP content here"
+                    required
+                />
             </div>
             <button type="submit">Process Files</button>
         </form>
@@ -29,7 +35,6 @@ export default {
             files: {
                 cert: null,
                 pkey: null,
-                msp: null,
             },
             privateKey: null,
             certificate: null,
@@ -45,7 +50,6 @@ export default {
             const regexMap = {
                 pkey: /-----BEGIN PRIVATE KEY-----(.*?)-----END PRIVATE KEY-----/s,
                 cert: /-----BEGIN CERTIFICATE-----(.*?)-----END CERTIFICATE-----/s,
-                msp: /.+/,
             };
 
             this.extractFileContent(file, fileKey, regexMap[fileKey]);
@@ -57,7 +61,7 @@ export default {
                 const match = fileContent.match(regex);
 
                 if (match) {
-                    this[keyType === "pkey" ? "privateKey" : keyType === "cert" ? "certificate" : "mspContent"] = fileContent.trim();
+                    this[keyType === "pkey" ? "privateKey" : "certificate"] = fileContent.trim();
                     console.log(`${keyType} content extracted successfully.`);
                 } else {
                     this.responseMessage = `Invalid ${keyType.toUpperCase()} format or content.`;
@@ -69,10 +73,9 @@ export default {
             };
             reader.readAsText(file);
         },
-
         async processFiles() {
             if (!this.privateKey || !this.certificate || !this.mspContent) {
-                this.responseMessage = "Please upload all required files.";
+                this.responseMessage = "Please provide all required data.";
                 return;
             }
 
