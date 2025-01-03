@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -85,9 +86,11 @@ func newGrpcConnection() (*grpc.ClientConn, error) {
     return connection, nil
 }
 
-func updateGrpcConnection(tlsCertContent []byte) (*grpc.ClientConn, error) {
-	// With TLS
-    certificatePEM := tlsCertContent
+func updateGrpcConnection(updatedTlsCertPath string) (*grpc.ClientConn, error) {
+	certificatePEM, err := os.ReadFile(updatedTlsCertPath)
+    if err != nil {
+        return nil, fmt.Errorf("failed to read TLS certificate: %w", err)
+    }
 
     block, _ := pem.Decode(certificatePEM)
     if block == nil {
@@ -100,7 +103,7 @@ func updateGrpcConnection(tlsCertContent []byte) (*grpc.ClientConn, error) {
     }
 
     transportCredentials := credentials.NewClientTLSFromCert(certPool, "")
-    connection, err := grpc.Dial("localhost:7051", grpc.WithTransportCredentials(transportCredentials))
+    connection, err := grpc.Dial("localhost:9051", grpc.WithTransportCredentials(transportCredentials))
     if err != nil {
         return nil, fmt.Errorf("failed to create gRPC connection: %w", err)
     }
@@ -398,6 +401,7 @@ func walletSignIn(c *gin.Context) {
         return
     }
 
+    // Extract and sanitize inputs
     certificate, certOk := requestBody["certificate"]
     privateKey, keyOk := requestBody["privateKey"]
     mspContent, mspOk := requestBody["mspContent"]
@@ -406,6 +410,34 @@ func walletSignIn(c *gin.Context) {
         c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required fields in the request body"})
         return
     }
+
+    mspContent = strings.TrimSpace(mspContent)
+    certificate = strings.ReplaceAll(strings.TrimSpace(certificate), "\\n", "\n")
+    privateKey = strings.ReplaceAll(strings.TrimSpace(privateKey), "\\n", "\n")
+
+    log.Printf("Sanitized MSP Content:\n%s", mspContent)
+    log.Printf("Sanitized Certificate:\n%s", certificate)
+    log.Printf("Sanitized Private Key:\n%s", privateKey)
+
+    // Validate PEM structure
+    if !strings.HasPrefix(certificate, "-----BEGIN CERTIFICATE-----") || !strings.HasSuffix(certificate, "-----END CERTIFICATE-----") {
+        log.Printf("Invalid certificate format")
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid certificate format"})
+        return
+    }
+
+    if !strings.HasPrefix(privateKey, "-----BEGIN PRIVATE KEY-----") || !strings.HasSuffix(privateKey, "-----END PRIVATE KEY-----") {
+        log.Printf("Invalid private key format")
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid private key format"})
+        return
+    }
+
+    // // Check MSP content for basic validity
+    // if !strings.Contains(mspContent, "-----BEGIN CERTIFICATE-----") || !strings.Contains(mspContent, "-----END CERTIFICATE-----") {
+    //     log.Printf("Invalid MSP content format")
+    //     c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid MSP content format"})
+    //     return
+    // }
 
     // Create a new identity
     identity := NewX509Identity(mspContent, certificate, privateKey)
@@ -450,7 +482,7 @@ func walletSignIn(c *gin.Context) {
     }
 
     // Create a new gRPC connection
-    clientConnection, err = newGrpcConnection()
+    clientConnection, err = updateGrpcConnection("../../fabric/test-network/organizations/peerOrganizations/org2.av.com/users/User1@org2.av.com/msp/tlscacerts/tlsca.org2.av.com-cert.pem")
     if err != nil {
         log.Printf("Failed to create gRPC connection: %v", err)
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create gRPC connection"})
