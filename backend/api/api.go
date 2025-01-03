@@ -23,11 +23,9 @@ import (
 )
 
 const (
-	// configPath   = "../../fabric/test-network/config/configtx.yaml"
 	chaincodeID  = "basic"                                                    
-	channelID    = "channel1"                                                 
-	tlsCertPath  = "../../fabric/test-network/organizations/peerOrganizations/org1.av.com/users/User1@org1.av.com/msp/tlscacerts/tlsca.org1.av.com-cert.pem"                                  // TLS certificate path
-	mspID        = "Org1MSP"
+	channelID    = "channel1"       
+	port 		 = "localhost:7051"                                          
 	aviationStackAPIURL = "https://api.aviationstack.com/v1/flights"
 )
 type Asset struct {
@@ -61,9 +59,15 @@ type FlightData struct {
 var gateway *client.Gateway
 var clientConnection *grpc.ClientConn
 
-func newGrpcConnection() (*grpc.ClientConn, error) {
-	// With TLS
-    certificatePEM, err := os.ReadFile(tlsCertPath)
+func updateGrpcConnection(msp string) (*grpc.ClientConn, error) {
+	tlsCertPath  := "../../fabric/test-network/organizations/peerOrganizations/org1.av.com/users/Admin@org1.av.com/msp/tlscacerts/tlsca.org1.av.com-cert.pem"
+	port := "localhost:7051"
+	if (msp == "Org2MSP") {
+		tlsCertPath  = "../../fabric/test-network/organizations/peerOrganizations/org2.av.com/users/Admin@org2.av.com/msp/tlscacerts/tlsca.org2.av.com-cert.pem"
+		port = "localhost:9051"
+	}
+
+	certificatePEM, err := os.ReadFile(tlsCertPath)
     if err != nil {
         return nil, fmt.Errorf("failed to read TLS certificate: %w", err)
     }
@@ -79,89 +83,12 @@ func newGrpcConnection() (*grpc.ClientConn, error) {
     }
 
     transportCredentials := credentials.NewClientTLSFromCert(certPool, "")
-    connection, err := grpc.Dial("localhost:7051", grpc.WithTransportCredentials(transportCredentials))
+    connection, err := grpc.Dial(port, grpc.WithTransportCredentials(transportCredentials))
     if err != nil {
         return nil, fmt.Errorf("failed to create gRPC connection: %w", err)
     }
 
     return connection, nil
-}
-
-func updateGrpcConnection(updatedTlsCertPath string) (*grpc.ClientConn, error) {
-	certificatePEM, err := os.ReadFile(updatedTlsCertPath)
-    if err != nil {
-        return nil, fmt.Errorf("failed to read TLS certificate: %w", err)
-    }
-
-    block, _ := pem.Decode(certificatePEM)
-    if block == nil {
-        return nil, fmt.Errorf("failed to decode PEM")
-    }
-
-    certPool := x509.NewCertPool()
-    if !certPool.AppendCertsFromPEM(certificatePEM) {
-        return nil, fmt.Errorf("failed to add certificate to pool")
-    }
-
-    transportCredentials := credentials.NewClientTLSFromCert(certPool, "")
-    connection, err := grpc.Dial("localhost:9051", grpc.WithTransportCredentials(transportCredentials))
-    if err != nil {
-        return nil, fmt.Errorf("failed to create gRPC connection: %w", err)
-    }
-
-    return connection, nil
-}
-
-func initFabric() error {
-	var err error
-	
-	// Create gRPC connection
-	clientConnection, err = newGrpcConnection()
-	if err != nil {
-		return fmt.Errorf("failed to create gRPC connection: %v", err)
-	}
-
-	// Init wallet and Load Identity
-	store := &FileWalletStore{}
-	identity, err := LoadIdentityFromFiles(mspID, 
-		"../../fabric/test-network/organizations/peerOrganizations/org1.av.com/users/User1@org1.av.com/msp/signcerts/User1@org1.av.com-cert.pem", 
-		"../../fabric/test-network/organizations/peerOrganizations/org1.av.com/users/User1@org1.av.com/msp/keystore/priv_sk")
-	if err != nil {
-		return fmt.Errorf("failed to load identity from files: %v", err)
-	}
-
-	// Create a wallet and add the identity
-	walletInstance, err := NewWallet(identity, store)
-	if err != nil {
-		return fmt.Errorf("failed to create wallet: %v", err)
-	}
-
-	// Store the identity in the wallet with a label
-	err = walletInstance.Put("user_identity", identity)
-	if err != nil {
-		return fmt.Errorf("failed to store identity in wallet: %v", err)
-	}
-
-	retrievedIdentity, err := walletInstance.Get("user_identity")
-	if err != nil {
-		return fmt.Errorf("failed to retrieve identity from wallet: %v", err)
-	}
-
-	signingImplementation, err := retrievedIdentity.Signer()
-	if err != nil {
-		panic(fmt.Sprintf("failed to get signing implementation: %v", err))
-	}
-
-	// Create the gateway using the wallet identity
-	gateway, err = client.Connect(
-		&retrievedIdentity,
-		client.WithClientConnection(clientConnection),
-		client.WithSign(signingImplementation))
-	if err != nil {
-		return fmt.Errorf("failed to create gateway: %v", err)
-	}
-
-	return nil
 }
 
 func FetchFlightData(flightID string) (*FlightData, error) {
@@ -468,7 +395,7 @@ func walletSignIn(c *gin.Context) {
     }
 
     // Create a new gRPC connection
-    clientConnection, err = updateGrpcConnection("../../fabric/test-network/organizations/peerOrganizations/org2.av.com/users/User1@org2.av.com/msp/tlscacerts/tlsca.org2.av.com-cert.pem")
+    clientConnection, err = updateGrpcConnection(mspContent)
     if err != nil {
         log.Printf("Failed to create gRPC connection: %v", err)
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create gRPC connection"})
@@ -494,11 +421,6 @@ func walletSignIn(c *gin.Context) {
 
 func main() {
 	defer clientConnection.Close()
-
-	// Init Fabric connection
-	if err := initFabric(); err != nil {
-		log.Fatalf("Failed to initialize Fabric Gateway: %v", err)
-	}
 
 	// Set up Gin router
 	router := gin.Default()
