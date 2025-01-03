@@ -54,24 +54,26 @@ export default {
 
             this.extractFileContent(file, fileKey, regexMap[fileKey]);
         },
-        extractFileContent(file, keyType, regex) {
+        extractFileContent(file, keyType) {
             const reader = new FileReader();
             reader.onload = (event) => {
-                const fileContent = event.target.result;
-                const match = fileContent.match(regex);
+                const arrayBuffer = event.target.result;
+                const byteArray = new Uint8Array(arrayBuffer);
+                const base64String = btoa(String.fromCharCode(...byteArray));
 
-                if (match) {
-                    this[keyType === "pkey" ? "privateKey" : "certificate"] = fileContent.trim();
-                    console.log(`${keyType} content extracted successfully.`);
-                } else {
-                    this.responseMessage = `Invalid ${keyType.toUpperCase()} format or content.`;
+                if (keyType === "pkey") {
+                    this.privateKey = base64String;
+                } else if (keyType === "cert") {
+                    this.certificate = base64String;
                 }
+
+                console.log(`${keyType} converted to Base64 successfully.`);
             };
             reader.onerror = (error) => {
                 console.error(`Error reading ${keyType} file:`, error);
                 this.responseMessage = `Failed to read the ${keyType.toUpperCase()} file.`;
             };
-            reader.readAsText(file);
+            reader.readAsArrayBuffer(file);
         },
         async processFiles() {
             if (!this.privateKey || !this.certificate || !this.mspContent) {

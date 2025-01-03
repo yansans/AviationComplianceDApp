@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
@@ -393,6 +394,14 @@ func populateLedger(c *gin.Context) {	// ONLY USE FOR TESTING PURPOSES
     c.JSON(http.StatusOK, gin.H{"message": "Ledger populated successfully"})
 }
 
+func decodeBase64(encoded string) (string, error) {
+	decodedBytes, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return "", err
+	}
+	return string(decodedBytes), nil
+}
+
 func walletSignIn(c *gin.Context) {
     var requestBody map[string]string
     if err := c.BindJSON(&requestBody); err != nil {
@@ -402,8 +411,8 @@ func walletSignIn(c *gin.Context) {
     }
 
     // Extract and sanitize inputs
-    certificate, certOk := requestBody["certificate"]
-    privateKey, keyOk := requestBody["privateKey"]
+    encodedCert, certOk := requestBody["certificate"]
+    encodedKey, keyOk := requestBody["privateKey"]
     mspContent, mspOk := requestBody["mspContent"]
 
     if !certOk || !keyOk || !mspOk {
@@ -411,33 +420,10 @@ func walletSignIn(c *gin.Context) {
         return
     }
 
+
     mspContent = strings.TrimSpace(mspContent)
-    certificate = strings.ReplaceAll(strings.TrimSpace(certificate), "\\n", "\n")
-    privateKey = strings.ReplaceAll(strings.TrimSpace(privateKey), "\\n", "\n")
-
-    log.Printf("Sanitized MSP Content:\n%s", mspContent)
-    log.Printf("Sanitized Certificate:\n%s", certificate)
-    log.Printf("Sanitized Private Key:\n%s", privateKey)
-
-    // Validate PEM structure
-    if !strings.HasPrefix(certificate, "-----BEGIN CERTIFICATE-----") || !strings.HasSuffix(certificate, "-----END CERTIFICATE-----") {
-        log.Printf("Invalid certificate format")
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid certificate format"})
-        return
-    }
-
-    if !strings.HasPrefix(privateKey, "-----BEGIN PRIVATE KEY-----") || !strings.HasSuffix(privateKey, "-----END PRIVATE KEY-----") {
-        log.Printf("Invalid private key format")
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid private key format"})
-        return
-    }
-
-    // // Check MSP content for basic validity
-    // if !strings.Contains(mspContent, "-----BEGIN CERTIFICATE-----") || !strings.Contains(mspContent, "-----END CERTIFICATE-----") {
-    //     log.Printf("Invalid MSP content format")
-    //     c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid MSP content format"})
-    //     return
-    // }
+    certificate, err := decodeBase64(encodedCert)
+    privateKey, err := decodeBase64(encodedKey)
 
     // Create a new identity
     identity := NewX509Identity(mspContent, certificate, privateKey)
