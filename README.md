@@ -36,3 +36,5 @@ Rekomendasi menggunakan Linux atau WSL
 3. Jalankan frontend dengan `npm run dev`
 
 ## Link Video Demonstrasi
+
+[Video Demo](https://drive.google.com/file/d/1SstqAB5AFBSbh2hc_0__7JzNcfeyA5CW/view?usp=sharing)
