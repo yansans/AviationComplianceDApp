@@ -21,11 +21,18 @@ Rekomendasi menggunakan Linux atau WSL
 ## Cara Deployment Smart Contract
 
 1. Masuk ke folder fabric `cd fabric` kemudian masuk ke folder test-network `cd test-network`
-2. Jalankan script smart contract `./network.sh deployCC -ccn compliance -ccp ../../backend/chaincode/ -ccl go -c channel1`
+2. Jalankan script smart contract `./network.sh deployCC -ccn basic -ccp ../../backend/chaincode/ -ccl go -c channel1`
 
 ## Cara Deployment dan Integrasi Oracle
 
+0. Pastikan .env sudah terisi dengan benar
 1. Masuk ke folder backend `cd backend` kemudian masuk ke folder api `cd api`
 2. Jalankan backend yang secara langsung akan menjalankan oracle `go run .`
+
+## Cara menjalankan frontend
+
+1. Masuk ke folder frontend dengan `cd frontend`
+2. Install dependency dengan `npm install`
+3. Jalankan frontend dengan `npm run dev`
 
 ## Link Video Demonstrasi
